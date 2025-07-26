@@ -1,0 +1,5 @@
+# .gitignore
+.venv
+.json
+.jsonl
+.ipynb_checkpoints
