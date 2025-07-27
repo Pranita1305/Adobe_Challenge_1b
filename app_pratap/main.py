@@ -126,3 +126,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# python main.py --pdfs_dir "Challenge_1b/Collection_1/PDFs" --persona "Travel Planner" --job "Plan a trip of 4 days for a group of 10 college friends."
