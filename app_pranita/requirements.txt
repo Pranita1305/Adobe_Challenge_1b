@@ -3,4 +3,12 @@ transformers==4.42.3
 sentence-transformers==2.7.0
 numpy==1.26.4
 scipy==1.13.1
-PyMuPDF==1.24.5 # Required for the placeholder Part 1A processor
+PyMuPDF==1.24.5
+scikit-learn==1.5.0 # Added for LabelEncoder and metrics if training locally with your scripts
+pandas==2.2.2 # Added for pandas if training locally with your script
+optimum[onnxruntime]
+datasets
+accelerate
+bitsandbytes
+peft
+evaluate
