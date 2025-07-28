@@ -2,6 +2,20 @@
 
 **Theme:** "Connect What Matters — For the User Who Matters"
 
+## 🚀 Quick Start
+
+1. **Clone the repository**
+2. **Build the Docker container**: `docker build -t adobe-challenge1b .`
+3. **Run with your collection**: `docker run adobe-challenge1b "Collection 1"`
+4. **Check output**: Results saved to `data/Collection 1/challenge1b_output.json`
+
+## 📋 Requirements
+
+- Docker (for containerized deployment)
+- OR Python 3.10+ with dependencies (for local development)
+- Input PDFs in the specified collection directory
+- Valid `challenge1b_input.json` configuration file
+
 ## 🧠 Challenge Brief
 
 This system acts as an intelligent document analyst, extracting and prioritizing the most relevant sections from a collection of documents based on a specific persona and their job-to-be-done. It uses advanced semantic embeddings and multiprocessing for efficient document analysis.
@@ -24,9 +38,6 @@ Adobe_Challenge_1b/
 │   │   └── Collection 3/
 │   └── transformers_models/      # Downloaded embedding models
 │       └── sentence-transformers_all-MiniLM-L6-v2/
-├── app_pratap/                   # Alternative implementation
-├── app_pranita/                  # Alternative implementation  
-├── app_shourya/                  # Alternative implementation
 ├── Dockerfile                    # Container configuration
 └── README.md                     # This file
 ```
@@ -94,6 +105,76 @@ The system generates a JSON output with:
 - Refined text (truncated to complete sentences)
 - Page number
 
+## 2. The Development Process: From Parsing to Persona Matching
+
+The solution's robustness for Challenge 1B stems from a carefully designed pipeline that combines precise PDF content extraction with advanced semantic understanding.
+
+### 2.1. Feature Engineering and Content Structuring (`ingest.py`)
+
+The `ingest.py` script is the foundational layer, responsible for transforming raw PDF content into a structured, feature-rich format suitable for analysis.
+
+**Logical Text Block Extraction:** Uses PyMuPDF to parse each page, extracting text blocks along with detailed layout features such as font size, font name, bold status, color, and bounding box coordinates. It intelligently merges visually contiguous lines into coherent text blocks.
+
+**Filtering:** Implements several filtering steps to remove irrelevant content like headers, footers, and very short or visually insignificant blocks.
+
+**Layout Feature Engineering:** Augments each block with computed features like `relative_font_size` (relative to the document's modal font size), `word_count`, and `vertical_position` on the page.
+
+**Hierarchical Heading and Section Identification (`identify_headings_and_content_sections`):**
+
+This is a critical, refined component that goes beyond simple heading detection. It uses a sophisticated heuristic-based approach to identify top-level section headings within the document. This involves analyzing font prominence (boldness, size relative to body text), line length, and the nature of the text blocks immediately following (e.g., presence of sub-headings or body prose).
+
+It then groups all subsequent content blocks until the next detected top-level heading, forming a complete conceptual section. This allows the `section_title` in the output to be a meaningful high-level heading (e.g., "Falafel" for a recipe).
+
+The overall document title (if present on the first page) is intelligently identified and excluded from being an `extracted_section` heading.
+
+**Passage Grouping (`group_blocks_into_passages`):**
+
+Further refines the extracted content by grouping contiguous body text blocks into larger, semantically coherent "passages." This is essential for `subsection_analysis` to ensure complete ideas are presented, rather than fragmented sentences. It uses vertical proximity and consistent styling to define these passages.
+
+### 2.2. Semantic Search and Ranking (`main_challenge1b.py`)
+
+The `main_challenge1b.py` script orchestrates the entire persona-based content discovery and ranking process.
+
+**Parallel Processing:** Leverages Python's `multiprocessing` module (`multiprocessing.Pool` with `starmap`) to process multiple PDF documents concurrently, significantly reducing overall execution time. Each worker process loads its own instance of the MiniLM model for independent processing.
+
+**Dynamic Persona Query:** It reads the `persona` (role) and `job_to_be_done` (task) from the `challenge1b_input.json` to construct a rich, descriptive persona query. This query is then used for all semantic comparisons.
+
+**Model Selection (`sentence-transformers/all-MiniLM-L6-v2`):**
+
+This model was chosen due to its excellent balance of:
+- **Size:** Approximately 90MB, well within typical memory constraints
+- **Performance:** Provides high-quality semantic embeddings
+- **Efficiency:** Fast inference speed, suitable for CPU-only execution
+- **Robustness:** Adept at capturing nuanced semantic relationships
+
+**Two-Stage Content Extraction and Ranking:**
+
+**Stage 1: Extracted Sections (`extracted_sections`):**
+- For each PDF, it identifies major sections using `identify_headings_and_content_sections`
+- It calculates the semantic similarity between the persona query and the full content text associated with each identified section heading
+- All identified and scored sections across all PDFs are then globally ranked by their semantic similarity score. The top 5 unique sections are selected. The `section_title` in the output will be the actual heading text from the PDF (e.g., "Falafel")
+
+**Stage 2: Subsection Analysis (`subsection_analysis`):**
+- This stage focuses its search only within the PDFs that contributed to the top 5 `extracted_sections`
+- It takes all the identified "passages" (from `group_blocks_into_passages`) from these relevant PDFs
+- It calculates the semantic similarity between the persona query and each passage
+- All relevant passages are then globally ranked by their semantic similarity score. The top 5 unique passages are selected
+
+**Complete Sentence Output:** A `truncate_to_complete_sentence` utility ensures that the `refined_text` for these passages is coherently truncated to a maximum display length, always ending on a complete sentence, even if the original passage was very long.
+
+## 3. System Architecture and Final Pipeline
+
+The final solution is a streamlined, efficient, and parallelized Python application.
+
+- **`main_challenge1b.py`:** The primary script. It loads the single MiniLM model, sets up the multiprocessing pool, and orchestrates the entire workflow from reading input JSON to generating the final ranked output.
+
+- **`ingest.py`:** Contains the core reusable functions for detailed PDF parsing, layout feature engineering, and intelligent content structuring (identifying heading-content sections and grouping passages).
+
+- **`download_models.py`:** A utility script for the one-time download of the required transformer model, ensuring offline capability.
+
+- **`requirements.txt`:** Manages all Python dependencies.
+
+
 ## 🐳 Running with Docker
 
 ### Build the Container
@@ -142,23 +223,6 @@ python download_models.py
 python main_challenge1b.py --collection "Collection 1"
 ```
 
-## 📊 Sample Test Cases
-
-### Test Case 1: Academic Research
-- **Documents**: 4 papers on "Graph Neural Networks for Drug Discovery"
-- **Persona**: PhD Researcher in Computational Biology
-- **Job**: Prepare a literature review focusing on methodologies, datasets, and benchmarks
-
-### Test Case 2: Business Analysis  
-- **Documents**: 3 tech company annual reports (2022–2024)
-- **Persona**: Investment Analyst
-- **Job**: Analyze revenue trends, R&D investment, and market strategy
-
-### Test Case 3: Educational Content
-- **Documents**: 5 chapters from organic chemistry textbooks
-- **Persona**: Undergraduate Chemistry Student  
-- **Job**: Identify key concepts and mechanisms for exam prep on reaction kinetics
-
 ## 🔧 Technical Features
 
 - **Semantic Embeddings**: Uses transformer models for deep content understanding
@@ -167,31 +231,3 @@ python main_challenge1b.py --collection "Collection 1"
 - **Memory Efficient**: CPU-only inference to avoid resource conflicts
 - **Containerized**: Fully dockerized for consistent deployment
 - **Configurable**: Command-line arguments for different data collections
-
-## 🎯 Solution Generalization
-
-The system is designed to work across:
-- **Multiple domains**: Research papers, textbooks, financial reports, technical documentation
-- **Diverse personas**: Students, researchers, analysts, professionals
-- **Different jobs**: Summarization, review, concept extraction, trend analysis
-
-## 🚀 Quick Start
-
-1. **Clone the repository**
-2. **Build the Docker container**: `docker build -t adobe-challenge1b .`
-3. **Run with your collection**: `docker run adobe-challenge1b "Collection 1"`
-4. **Check output**: Results saved to `data/Collection 1/challenge1b_output.json`
-
-## 📋 Requirements
-
-- Docker (for containerized deployment)
-- OR Python 3.10+ with dependencies (for local development)
-- Input PDFs in the specified collection directory
-- Valid `challenge1b_input.json` configuration file
-
-## 💡 Key Innovations
-
-- **Persona-Driven Analysis**: Tailors document analysis to specific user roles and goals
-- **Semantic Understanding**: Goes beyond keyword matching to understand content meaning
-- **Intelligent Ranking**: Prioritizes content based on relevance to persona's job-to-be-done
-- **Production Ready**: Containerized, scalable, and optimized for real-world deployment
