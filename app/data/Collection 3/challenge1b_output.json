@@ -1,0 +1,57 @@
+{
+    "metadata": {
+        "input_documents": [
+            "Breakfast Ideas.pdf",
+            "Dinner Ideas - Mains_1.pdf",
+            "Dinner Ideas - Mains_2.pdf",
+            "Dinner Ideas - Mains_3.pdf",
+            "Dinner Ideas - Sides_1.pdf",
+            "Dinner Ideas - Sides_2.pdf",
+            "Dinner Ideas - Sides_3.pdf",
+            "Dinner Ideas - Sides_4.pdf",
+            "Lunch Ideas.pdf"
+        ],
+        "persona": "Food Contractor",
+        "job_to_be_done": "Prepare a vegetarian buffet-style dinner menu for a corporate gathering, including gluten-free items.",
+        "processing_timestamp": "2025-07-28T20:55:10.655663"
+    },
+    "extracted_sections": [
+        {
+            "document": "Dinner Ideas - Sides_1.pdf",
+            "section_title": "o Arrange meats, cheeses, olives, and vegetables on a platter. o Serve with breadsticks",
+            "importance_rank": 1,
+            "page_number": 3
+        },
+        {
+            "document": "Dinner Ideas - Sides_3.pdf",
+            "section_title": "o Dice tomatoes, onion, and cucumber. o Mix vegetables with chopped cilantro, lemon juice, and salt. o Serve chilled",
+            "importance_rank": 2,
+            "page_number": 4
+        },
+        {
+            "document": "Dinner Ideas - Sides_1.pdf",
+            "section_title": "o Prepare each side dish separately. o Arrange on small plates. o Serve as accompaniments to the main meal",
+            "importance_rank": 3,
+            "page_number": 5
+        },
+        {
+            "document": "Dinner Ideas - Sides_4.pdf",
+            "section_title": "o Serve as a dip or side dish",
+            "importance_rank": 4,
+            "page_number": 15
+        },
+        {
+            "document": "Dinner Ideas - Sides_1.pdf",
+            "section_title": "o Assorted small side dishes like pickled radish, spinach, bean sprouts, kimchi",
+            "importance_rank": 5,
+            "page_number": 5
+        }
+    ],
+    "subsection_analysis": [
+        {
+            "document": "Dinner Ideas - Sides_1.pdf",
+            "refined_text": "o Sauté diced onion and grated carrot in olive oil until softened. o Add bulgur and cook for 2 minutes",
+            "page_number": 10
+        }
+    ]
+}

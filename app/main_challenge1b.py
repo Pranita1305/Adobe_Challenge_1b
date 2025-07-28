@@ -9,6 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
 import multiprocessing
 import re # Still needed for basic text cleaning, but not for complex keyword matching logic
+import argparse
 
 # --- Import the necessary functions from ingest.py ---
 try:
@@ -33,11 +34,24 @@ from transformers import AutoTokenizer, AutoModel
 # ==============================================================================
 # --- Configuration ---
 # ==============================================================================
+
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description='Adobe Challenge 1B Document Analysis Pipeline')
+    parser.add_argument('--collection', '-c', 
+                       required=True,
+                       help='Collection folder name (required)')
+    return parser.parse_args()
+
+# Parse command line arguments
+args = parse_arguments()
+COLLECTION_NAME = args.collection
+
 PROJECT_ROOT = Path(__file__).parent.resolve()
 
-INPUT_JSON_PATH = PROJECT_ROOT / "data" / "Collection 1" / "challenge1b_input.json"
-OUTPUT_JSON_DIR = PROJECT_ROOT / "data" / "Collection 1"
-PDF_BASE_DIR = PROJECT_ROOT / "data" / "Collection 1" / "PDFs"
+INPUT_JSON_PATH = PROJECT_ROOT / "data" / COLLECTION_NAME / "challenge1b_input.json"
+OUTPUT_JSON_DIR = PROJECT_ROOT / "data" / COLLECTION_NAME
+PDF_BASE_DIR = PROJECT_ROOT / "data" / COLLECTION_NAME / "PDFs"
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_MODEL_PATH = PROJECT_ROOT / "transformers_models" / MODEL_NAME.replace("/", "_")
@@ -63,8 +77,9 @@ def load_embedding_model_for_process(model_path: Path):
         _embedding_tokenizer = AutoTokenizer.from_pretrained(model_path)
         _embedding_model = AutoModel.from_pretrained(model_path)
         _embedding_model.eval() # Set model to evaluation mode
-        _embedding_model.to(torch.device("cpu")) # Keep on CPU initially
-        print(f"[{os.getpid()}] ✅ Embedding Model and tokenizer loaded.")
+        # Force CPU usage in worker processes to avoid CUDA conflicts
+        _embedding_model.to(torch.device("cpu"))
+        print(f"[{os.getpid()}] ✅ Embedding Model and tokenizer loaded on CPU.")
     return _embedding_model, _embedding_tokenizer
 
 def get_sentence_embedding_in_process(text: str) -> np.ndarray:
@@ -79,9 +94,10 @@ def get_sentence_embedding_in_process(text: str) -> np.ndarray:
     text = str(text)
     inputs = _embedding_tokenizer(text, padding=True, truncation=True, return_tensors="pt", max_length=512)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Force CPU usage to avoid CUDA conflicts in multiprocessing
+    device = torch.device("cpu")
     inputs = {k: v.to(device) for k, v in inputs.items()}
-    _embedding_model.to(device) # Ensure model is on the correct device for each inference
+    _embedding_model.to(device) # Ensure model stays on CPU
 
     with torch.no_grad():
         outputs = _embedding_model(**inputs)
