@@ -9,6 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
 import multiprocessing
 import re
+import argparse
 
 # --- Import the necessary functions from ingest.py ---
 try:
@@ -33,16 +34,29 @@ from transformers import AutoTokenizer, AutoModel
 # ==============================================================================
 # --- Configuration ---
 # ==============================================================================
+
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description='Adobe Challenge 1B Document Analysis Pipeline')
+    parser.add_argument('--collection', '-c', 
+                       required=True,
+                       help='Collection folder name (required)')
+    return parser.parse_args()
+
+# Parse command line arguments
+args = parse_arguments()
+COLLECTION_NAME = args.collection
+
 PROJECT_ROOT = Path(__file__).parent.resolve()
 
-INPUT_JSON_PATH = PROJECT_ROOT / "data" / "Collection 2" / "challenge1b_input.json"
-PDF_BASE_DIR = PROJECT_ROOT / "data" / "Collection 2" / "pdfs"
+INPUT_JSON_PATH = PROJECT_ROOT / "data" / COLLECTION_NAME / "challenge1b_input.json"
+PDF_BASE_DIR = PROJECT_ROOT / "data" / COLLECTION_NAME / "pdfs"
 
 # --- ONLY ONE EMBEDDING MODEL FOR ALL PASSES ---
 MODEL_TO_USE = "sentence-transformers/all-MiniLM-L6-v2" # Using MiniLM only
 EMBEDDING_MODEL_PATH = PROJECT_ROOT / "transformers_models" / MODEL_TO_USE.replace("/", "_")
 
-OUTPUT_JSON_DIR = PROJECT_ROOT / "data" / "Collection 2"
+OUTPUT_JSON_DIR = PROJECT_ROOT / "data" / COLLECTION_NAME
 OUTPUT_JSON_DIR.mkdir(parents=True, exist_ok=True)
 
 # Global variables for model and tokenizer to be initialized once per process
