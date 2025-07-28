@@ -1,11 +1,11 @@
-torch==2.3.1
-transformers==4.42.3
-sentence-transformers==2.7.0
-numpy==1.26.4
-scipy==1.13.1
-PyMuPDF==1.24.5
-scikit-learn==1.5.0 # Added for LabelEncoder and metrics if training locally with your scripts
-pandas==2.2.2 # Added for pandas if training locally with your script
+torch
+transformers
+sentence-transformers
+numpy
+scipy
+PyMuPDF
+scikit-learn # Added for LabelEncoder and metrics if training locally with your scripts
+pandas # Added for pandas if training locally with your script
 optimum[onnxruntime]
 datasets
 accelerate
