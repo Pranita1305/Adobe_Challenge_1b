@@ -13,45 +13,65 @@
         ],
         "persona": "Food Contractor",
         "job_to_be_done": "Prepare a vegetarian buffet-style dinner menu for a corporate gathering, including gluten-free items.",
-        "processing_timestamp": "2025-07-28T20:55:10.655663"
+        "processing_timestamp": "2025-07-28T22:00:00.264952"
     },
     "extracted_sections": [
         {
             "document": "Dinner Ideas - Sides_1.pdf",
-            "section_title": "o Arrange meats, cheeses, olives, and vegetables on a platter. o Serve with breadsticks",
+            "section_title": "Instructions",
             "importance_rank": 1,
             "page_number": 3
         },
         {
-            "document": "Dinner Ideas - Sides_3.pdf",
-            "section_title": "o Dice tomatoes, onion, and cucumber. o Mix vegetables with chopped cilantro, lemon juice, and salt. o Serve chilled",
+            "document": "Dinner Ideas - Mains_1.pdf",
+            "section_title": "Spaghetti Bolognese Ingredients",
             "importance_rank": 2,
+            "page_number": 3
+        },
+        {
+            "document": "Breakfast Ideas.pdf",
+            "section_title": "Instructions",
+            "importance_rank": 3,
+            "page_number": 16
+        },
+        {
+            "document": "Dinner Ideas - Sides_3.pdf",
+            "section_title": "Instructions",
+            "importance_rank": 4,
             "page_number": 4
         },
         {
-            "document": "Dinner Ideas - Sides_1.pdf",
-            "section_title": "o Prepare each side dish separately. o Arrange on small plates. o Serve as accompaniments to the main meal",
-            "importance_rank": 3,
-            "page_number": 5
-        },
-        {
-            "document": "Dinner Ideas - Sides_4.pdf",
-            "section_title": "o Serve as a dip or side dish",
-            "importance_rank": 4,
-            "page_number": 15
-        },
-        {
-            "document": "Dinner Ideas - Sides_1.pdf",
-            "section_title": "o Assorted small side dishes like pickled radish, spinach, bean sprouts, kimchi",
+            "document": "Dinner Ideas - Mains_3.pdf",
+            "section_title": "Ramen Ingredients",
             "importance_rank": 5,
-            "page_number": 5
+            "page_number": 2
         }
     ],
     "subsection_analysis": [
         {
-            "document": "Dinner Ideas - Sides_1.pdf",
-            "refined_text": "o Sauté diced onion and grated carrot in olive oil until softened. o Add bulgur and cook for 2 minutes",
-            "page_number": 10
+            "document": "Dinner Ideas - Mains_1.pdf",
+            "refined_text": "1 pound ground beef\n\n1 small onion, diced\n\n2 cloves garlic, minced\n\n1 carrot, grated\n\n1 celery stalk, diced\n\n1 can (28 ounces) crushed tomatoes\n\n1/4 cup tomato paste\n\n1/2 cup red wine (optional\n\n1 teaspoon dried oregano\n\n1 teaspoon dried basil\n\nSalt and pepper to taste\n\nSpaghetti for serving\n\nGrated Parmesan cheese for garnish",
+            "page_number": 3
+        },
+        {
+            "document": "Dinner Ideas - Mains_1.pdf",
+            "refined_text": "Add shrimp, mussels, and cooked chicken, simmer for an additional 10 minutes until seafood is cooked and rice is tender\n\nGarnish with lemon wedges and serve",
+            "page_number": 15
+        },
+        {
+            "document": "Dinner Ideas - Mains_1.pdf",
+            "refined_text": "In the same skillet, cook ground lamb or beef, diced onion, and minced garlic until browned\n\nStir in diced tomatoes, red wine, cinnamon, oregano, salt, and pepper\n\nSimmer for 20 minutes\n\nIn a baking dish, layer eggplant slices and meat sauce\n\nPour béchamel sauce over the top and sprinkle with grated Parmesan cheese\n\nBake for 30-35 minutes until golden and bubbly\n\nServe warm",
+            "page_number": 12
+        },
+        {
+            "document": "Dinner Ideas - Mains_3.pdf",
+            "refined_text": "4 cups chicken broth\n\n1/4 cup soy sauce\n\n2 tablespoons miso paste\n\n2 cloves garlic, minced\n\n1 piece ginger, sliced\n\n1/2 pound pork belly, sliced\n\n4 eggs, soft-boiled\n\n8 ounces ramen noodles\n\nSliced green onions, nori, and sesame seeds for garnish",
+            "page_number": 2
+        },
+        {
+            "document": "Dinner Ideas - Mains_1.pdf",
+            "refined_text": "In a large pot, heat vegetable oil over medium heat\n\nCook diced onion, minced garlic, and grated ginger until fragrant\n\nAdd cubed lamb and cook until browned\n\nStir in diced tomatoes, coconut milk, curry powder, cumin, coriander, turmeric, garam masala, salt, and pepper\n\nBring to a simmer and cook for 1 hour until lamb is tender\n\nGarnish with chopped cilantro and serve",
+            "page_number": 13
         }
     ]
 }

@@ -7,8 +7,6 @@ from collections import Counter
 import re
 import numpy as np
 
-# Removed `from typing import List, Dict, Any` if it was there implicitly or explicitly
-# as we will use built-in types directly.
 
 def calculate_weighted_mean_font_size(blocks: list[dict]) -> float:
     """Calculates the character-weighted average font size for a list of blocks."""
@@ -179,7 +177,7 @@ def extract_logical_text_blocks(pdf_path: str, line_proximity_threshold: float =
 
                 if same_style and vertically_close and not is_list_item:
                     current_block["text"] += " " + current_line["text"]
-                    current_block["bbox"].include_rect(current_line["bbox"])
+                    current_block["bbox"].include_rect(current_line["bbox"]) # Corrected for proper bbox expansion
                 else:
                     merged_blocks.append(current_block)
                     current_block = {"text": current_line["text"], "bbox": pymupdf.Rect(current_line["bbox"]), "style": current_line["style"]}
@@ -224,71 +222,98 @@ def engineer_layout_features(blocks: list[dict]) -> list[dict]:
         block['vertical_position'] = block['bbox'][1] / page_height if page_height > 0 else 0
     return blocks
 
-def detect_sections(blocks: list[dict]) -> dict:
+def identify_headings_and_content_sections(blocks: list[dict]) -> list[dict]:
     """
-    Identifies document sections and subsections based on font sizes and boldness,
-    aiming to create a hierarchical outline.
+    Identifies actual headings and groups the subsequent content blocks into
+    sections. The 'section_title' will be the heading text, and 'content_text'
+    will be the combined text that follows it.
+    Prioritizes headings that introduce sub-headings or significant content.
     """
     if not blocks:
-        return {"title": "Untitled Document", "outline": []}
+        return []
+
+    sections_with_content = []
+    current_heading_candidate_block = None # Renamed to emphasize it's a candidate
+    current_content_blocks = []
 
     blocks.sort(key=lambda b: (b['page_number'], b['bbox'][1]))
 
-    title_candidate = None
-    max_font_size = 0
-    for block in blocks:
-        if block['page_number'] == 1 and block['font_size'] > max_font_size:
-            max_font_size = block['font_size']
-            title_candidate = block
-        if block['page_number'] > 1 or block['vertical_position'] > 0.3:
-            break
+    all_doc_font_sizes = [block['font_size'] for block in blocks if block['font_size'] > 0]
+    modal_doc_font_size = Counter(all_doc_font_sizes).most_common(1)[0][0] if all_doc_font_sizes else 1.0
+    
+    max_font_size_overall = max(block['font_size'] for block in blocks) if blocks else 0 
 
-    title = title_candidate['text'] if title_candidate else "Untitled Document"
-    remaining_blocks = [b for b in blocks if b is not title_candidate]
+    for i, block in enumerate(blocks):
+        # Heuristics for a potential heading:
+        is_bold_feature = block['is_bold']
+        is_large_font_feature = block['font_size'] > modal_doc_font_size * 1.2
+        is_short_line_feature = block['word_count'] <= 10 and block['char_count'] < 120
 
-    potential_heading_styles = {}
-    for block in remaining_blocks:
-        style_key = (block['font_size'], block['is_bold'])
-        if style_key not in potential_heading_styles:
-            potential_heading_styles[style_key] = []
-        potential_heading_styles[style_key].append(block)
+        # Look ahead for hierarchical structure: is next block a smaller heading?
+        next_block_is_subheading_candidate = False
+        if i + 1 < len(blocks):
+            next_block = blocks[i+1]
+            if next_block['font_size'] < block['font_size'] and \
+               (next_block['is_bold'] or next_block['font_size'] > modal_doc_font_size * 1.1):
+                next_block_is_subheading_candidate = True
+        
+        # Look ahead for body text (standard heading characteristic)
+        next_block_is_body_text_indicator = False
+        if i + 1 < len(blocks):
+            next_block = blocks[i+1]
+            # Check if next block is significantly smaller and not bold (typical content)
+            if not next_block['is_bold'] and next_block['font_size'] < block['font_size'] * 0.9:
+                next_block_is_body_text_indicator = True
 
-    total_remaining_blocks = len(remaining_blocks)
-    if total_remaining_blocks == 0:
-        return {"title": title, "outline": []}
+        # --- Refined Heading Identification Logic ---
+        # A block is considered an 'actual heading' if it's visually prominent
+        # AND it's followed by either a subheading or body text.
+        is_actual_heading = (is_bold_feature or is_large_font_feature) and \
+                            (is_short_line_feature or next_block_is_body_text_indicator or next_block_is_subheading_candidate)
 
-    candidate_styles = {}
-    for style, style_blocks in potential_heading_styles.items():
-        if len(style_blocks) / total_remaining_blocks < 0.6:
-            candidate_styles[style] = style_blocks
-
-    sorted_styles = sorted(
-        candidate_styles.keys(),
-        key=lambda s: (s[0], s[1]),
-        reverse=True
-    )
-
-    level_map = {}
-    heading_levels = ["H1", "H2", "H3", "H4", "H5"]
-    for i, style_key in enumerate(sorted_styles):
-        if i < len(heading_levels):
-            level_map[style_key] = heading_levels[i]
+        # Special handling for the very first block of the document:
+        # If it's on page 1, is the largest/near largest font, and short (like a document title), skip it.
+        # It shouldn't be considered a section heading for 'extracted_sections'.
+        if i == 0 and block['page_number'] == 1 and \
+           block['font_size'] >= max_font_size_overall * 0.8 and \
+           block['word_count'] < 20 and \
+           not is_actual_heading: # Only skip if it wasn't already identified as a strong, structured heading (e.g., a real H1 section)
+             continue 
+        
+        if is_actual_heading:
+            # If we've found a new heading, close the previous section if one exists
+            if current_heading_candidate_block and current_content_blocks:
+                combined_content_text = "\n\n".join([b["text"] for b in current_content_blocks])
+                if combined_content_text.strip():
+                    sections_with_content.append({
+                        "heading_text": current_heading_candidate_block["text"],
+                        "content_text": combined_content_text,
+                        "page_number": current_heading_candidate_block["page_number"],
+                        "original_blocks": current_content_blocks # Keep for later
+                    })
+            # Start a new section with the current block as its heading
+            current_heading_candidate_block = block
+            current_content_blocks = []
         else:
-            break
+            # If this block is not a heading, add it to the current content.
+            if current_heading_candidate_block: # Only add content if a heading has been established
+                current_content_blocks.append(block)
 
-    final_outline_ordered = []
-    for block in blocks:
-        style_key = (block['font_size'], block['is_bold'])
-        if style_key in level_map:
-            final_outline_ordered.append({
-                "level": level_map[style_key],
-                "text": block['text'],
-                "page": block['page_number']
+    # Add the last section if any content was accumulated
+    if current_heading_candidate_block and current_content_blocks:
+        combined_content_text = "\n\n".join([b["text"] for b in current_content_blocks])
+        if combined_content_text.strip():
+            sections_with_content.append({
+                "heading_text": current_heading_candidate_block["text"],
+                "content_text": combined_content_text,
+                "page_number": current_heading_candidate_block["page_number"],
+                "original_blocks": current_content_blocks
             })
+            
+    return sections_with_content
 
-    return {"title": title, "outline": final_outline_ordered}
 
-def group_blocks_into_passages(blocks: list[dict], passage_proximity_threshold: float = 15.0) -> list[dict]: # Corrected: list[dict]
+def group_blocks_into_passages(blocks: list[dict], passage_proximity_threshold: float = 15.0) -> list[dict]:
     """
     Groups contiguous blocks into larger 'passages' based on vertical proximity and similar non-heading style.
     This aims to re-create multi-paragraph sections of prose.
@@ -299,89 +324,73 @@ def group_blocks_into_passages(blocks: list[dict], passage_proximity_threshold: 
     passages = []
     current_passage = None
 
-    # Determine what constitutes "body text" style - typically the most common non-bold, non-large-font style.
-    body_text_styles = []
+    all_body_text_styles = []
     for block in blocks:
         if not block['is_bold'] and block['font_size'] < 16:
-             body_text_styles.append((block['font_size'], block['font_name'], block['is_bold'], block['color']))
+             all_body_text_styles.append((block['font_size'], block['is_bold'], block['color']))
     
-    most_common_body_style = Counter(body_text_styles).most_common(1)[0][0] if body_text_styles else None
+    most_common_body_style = Counter(all_body_text_styles).most_common(1)[0][0] if all_body_text_styles else None
 
 
     for i, block in enumerate(blocks):
-        # Determine if the block is likely a heading based on our general heuristics
-        is_heading_candidate = block['is_bold'] or block['relative_font_size'] > 1.2
-
-        if is_heading_candidate and current_passage:
-            # If a heading starts, and we have a current passage, close it
-            passages.append(current_passage)
-            current_passage = None
+        is_potential_separator = block['is_bold'] or (most_common_body_style and block['font_size'] > most_common_body_style[0] * 1.2)
         
-        if not is_heading_candidate:
-            if current_passage is None:
-                current_passage = {
-                    "text": block["text"],
-                    "page_number": block["page_number"],
-                    "start_bbox": list(block["bbox"]),
-                    "end_bbox": list(block["bbox"]),
-                    "font_size": block["font_size"],
-                    "is_bold": block["is_bold"],
-                    "original_blocks": [block]
-                }
-            else:
-                prev_block = current_passage["original_blocks"][-1]
-                
-                same_page = block["page_number"] == prev_block["page_number"]
-                vertically_close = (block["bbox"][1] - prev_block["bbox"][3]) < passage_proximity_threshold
-                
-                same_basic_style = (block['font_size'] == prev_block['font_size'] and block['is_bold'] == prev_block['is_bold'])
-                
-                if same_page and vertically_close and same_basic_style:
-                    current_passage["text"] += "\n\n" + block["text"]
-                    current_passage["end_bbox"][3] = block["bbox"][3]
-                    current_passage["original_blocks"].append(block)
-                else:
-                    passages.append(current_passage)
-                    current_passage = {
-                        "text": block["text"],
-                        "page_number": block["page_number"],
-                        "start_bbox": list(block["bbox"]),
-                        "end_bbox": list(block["bbox"]),
-                        "font_size": block["font_size"],
-                        "is_bold": block["is_bold"],
-                        "original_blocks": [block]
-                    }
+        can_merge_with_prev = False
+        if current_passage:
+            prev_block_in_passage = current_passage["original_blocks"][-1]
+            same_page = block["page_number"] == prev_block_in_passage["page_number"]
+            vertical_gap = block["bbox"][1] - prev_block_in_passage["bbox"][3]
+
+            is_similar_style = (abs(block['font_size'] - prev_block_in_passage['font_size']) < 2 and
+                                block['is_bold'] == prev_block_in_passage['is_bold'] and
+                                block['color'] == prev_block_in_passage['color'])
+
+            if same_page and vertical_gap < passage_proximity_threshold and is_similar_style:
+                can_merge_with_prev = True
+        
+        if is_potential_separator:
+            if current_passage:
+                passages.append(current_passage)
+                current_passage = None
+        elif can_merge_with_prev and current_passage:
+            current_passage["text"] += "\n\n" + block["text"]
+            current_passage["end_bbox"][3] = block["bbox"][3]
+            current_passage["original_blocks"].append(block)
         else:
-            pass
+            if current_passage:
+                passages.append(current_passage)
+            current_passage = {
+                "text": block["text"],
+                "page_number": block["page_number"],
+                "start_bbox": list(block["bbox"]),
+                "end_bbox": list(block["bbox"]),
+                "font_size": block["font_size"],
+                "is_bold": block["is_bold"],
+                "color": block['color'],
+                "original_blocks": [block]
+            }
             
     if current_passage:
         passages.append(current_passage)
 
     for passage in passages:
         passage["bbox"] = tuple(passage["start_bbox"])
-        # Re-add/calculate expected features for passages to be used by semantic search
         passage['char_count'] = len(passage['text'])
         passage['word_count'] = len(passage['text'].split())
         
-        # Use a representative vertical position (e.g., from the first block)
-        page_height = 792.0 # Default page height if not dynamically found
+        page_height = 792.0
         passage['vertical_position'] = passage['bbox'][1] / page_height if page_height > 0 else 0
         
-        # Recalculate relative_font_size based on overall document modal font size
-        # This requires passing modal_font_size or calculating it for all blocks here.
-        # For simplicity, let's derive it directly within this function from the input blocks.
-        all_doc_font_sizes = [b['font_size'] for b in blocks if b['font_size'] > 0]
-        modal_doc_font_size = Counter(all_doc_font_sizes).most_common(1)[0][0] if all_doc_font_sizes else 1.0
+        all_blocks_font_sizes = [b['font_size'] for b in blocks if b['font_size'] > 0]
+        modal_doc_font_size = Counter(all_blocks_font_sizes).most_common(1)[0][0] if all_blocks_font_sizes else 1.0
         passage['relative_font_size'] = passage['font_size'] / modal_doc_font_size if modal_doc_font_size > 0 else 0
         
         passage['is_bold_numeric'] = 1 if passage['is_bold'] else 0
-        passage['color'] = passage['original_blocks'][0]['color'] if passage['original_blocks'] else 0 # Use color of first block
+        passage['color'] = passage['original_blocks'][0]['color'] if passage['original_blocks'] else 0 
         
-        # Clean up temporary keys (do this at the very end if you don't need them after feature engineering)
         del passage["start_bbox"]
         del passage["end_bbox"]
         del passage["original_blocks"]
-
 
     return passages
 
@@ -439,18 +448,25 @@ if __name__ == "__main__":
     featured_blocks = engineer_layout_features(final_blocks_unfeatured)
     print(f"6. Successfully engineered layout features. Total: {len(featured_blocks)}")
 
+    print("\n--- Testing Heading-Content Section Identification ---")
+    sections_with_content = identify_headings_and_content_sections(featured_blocks)
+    print(f"7. Identified {len(sections_with_content)} heading-content sections.")
+    for i, sec in enumerate(sections_with_content):
+        print(f"\n--- Section {i+1} (Page {sec['page_number']}) ---")
+        print(f"Heading: '{sec['heading_text']}'")
+        print(f"Content (first 200 chars): {sec['content_text'][:200]}...")
+        # pprint.pprint(sec) # Uncomment for full section details
+
+
     print("\n--- Testing Passage Grouping ---")
     passages = group_blocks_into_passages(featured_blocks)
-    print(f"7. Grouped {len(featured_blocks)} blocks into {len(passages)} passages.")
+    print(f"8. Grouped {len(featured_blocks)} blocks into {len(passages)} passages.")
     for i, passage in enumerate(passages):
         print(f"\n--- Passage {i+1} (Page {passage['page_number']}) ---")
         print(f"Text (first 200 chars): {passage['text'][:200]}...")
         print(f"Word Count: {passage.get('word_count', 'N/A')}, Rel. Font Size: {passage.get('relative_font_size', 'N/A'):.2f}")
-        pprint.pprint(passage) # Uncomment for full passage details
+        # pprint.pprint(passage) # Uncomment for full passage details
 
-    print("\n--- Testing Section Detection ---")
-    document_outline = detect_sections(featured_blocks)
-    pprint.pprint(document_outline)
 
     end_time = time.monotonic()
     duration = end_time - start_time
