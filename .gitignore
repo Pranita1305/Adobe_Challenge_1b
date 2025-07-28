@@ -4,3 +4,4 @@
 .jsonl
 .ipynb_checkpoints
 transformers_models/*
+app/transformers_models/*

@@ -35,14 +35,12 @@ from transformers import AutoTokenizer, AutoModel
 # ==============================================================================
 PROJECT_ROOT = Path(__file__).parent.resolve()
 
-INPUT_JSON_PATH = PROJECT_ROOT / "input" / "Collection1" / "challenge1b_input.json"
-PDF_BASE_DIR = PROJECT_ROOT / "input" / "Collection1" / "pdfs"
+INPUT_JSON_PATH = PROJECT_ROOT / "data" / "Collection 1" / "challenge1b_input.json"
+OUTPUT_JSON_DIR = PROJECT_ROOT / "data" / "Collection 1"
+PDF_BASE_DIR = PROJECT_ROOT / "data" / "Collection 1" / "PDFs"
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_MODEL_PATH = PROJECT_ROOT / "transformers_models" / MODEL_NAME.replace("/", "_")
-
-OUTPUT_JSON_DIR = PROJECT_ROOT / "output" / "json"
-OUTPUT_JSON_DIR.mkdir(parents=True, exist_ok=True)
 
 # Global variables for model and tokenizer to be initialized once per process
 _embedding_model = None
